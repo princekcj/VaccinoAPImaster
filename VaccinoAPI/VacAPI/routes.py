@@ -12,17 +12,20 @@ from googleplaces import GooglePlaces, types
 from datetime import datetime
 
 gmaps = googlemaps.Client(key='AIzaSyCee7-FHwxX05iBtQgm-IP-BsTwORgtPfw')
-google_places = GooglePlaces(key='AIzaSyBDfNHKqNBi7ni5nj-xAuy9XjUsRrrJT8c')
+google_places = GooglePlaces('AIzaSyBDfNHKqNBi7ni5nj-xAuy9XjUsRrrJT8c')
 
 
 def define_location():
     location = gmaps.geolocate()
     lat = location['location']['lat']
     long = location['location']['lng']
-    decoded = geocoder.google([lat, long], method='reverse')
-    vals = decoded.json
-    location = vals['address']
-    return location
+    decoded = gmaps.reverse_geocode((lat, long))
+    d = decoded[0]
+    location_values = d['address_components']
+    local = location_values[1]
+    location = local['long_name']
+    print(location)
+    return str(location)
 
 def define_vaccinations_centre(location):
     results=[]
@@ -118,7 +121,10 @@ api.add_resource(UserLogin_Create, '/user')
 @app.route("/")
 @app.route("/Dashboard/<id_of_user>")
 def home(id_of_user):
-    return jsonify(posts)
+    user = User.query.get_or_404(id_of_user)
+    name = user.username
+    Greeting = f'Hello, {name}'
+    return jsonify(Greeting)
 
 
 @app.route("/company_updates")
