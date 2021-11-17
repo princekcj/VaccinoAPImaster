@@ -15,6 +15,23 @@ gmaps = googlemaps.Client(key='AIzaSyCee7-FHwxX05iBtQgm-IP-BsTwORgtPfw')
 google_places = GooglePlaces('AIzaSyBDfNHKqNBi7ni5nj-xAuy9XjUsRrrJT8c')
 
 
+posts = [
+    {
+        'author': 'VacAPI Pay',
+        'title': 'Borderless Transfer',
+        'content': 'Send Ghanaian Cedis to any African country, Fast and Fee - Less',
+        'date_posted': 'March 21, 2020'
+    },
+    {
+        'author': 'VacAPI Pay',
+        'title': 'African Currency Exchange',
+        'content': 'Check and Change Your Cedis Into Any African Currency',
+        'date_posted': 'April 21, 2018'
+    }
+]
+
+
+
 def define_location():
     location = gmaps.geolocate()
     lat = location['location']['lat']
@@ -23,13 +40,13 @@ def define_location():
     d = decoded[0]
     location_values = d['address_components']
     local = location_values[1]
-    location = local['long_name']
-    print(location)
-    return str(location)
+    location_name = local['long_name']
+    location ={lat, long}
+    return location
 
 def define_vaccinations_centre(location):
     results=[]
-    nearby_centres = google_places.nearby_search(location=location, type='hospital' ,keyword='vaccination centre', radius=5000)
+    nearby_centres = google_places.nearby_search(location=location, rankby=distance,type='hospital' ,keyword='vaccination centre', radius=5000)
     for item in nearby_centres.places:
         results.append(item.name)
         return results
@@ -55,12 +72,12 @@ class TestResource(Resource):
             db.session.add(tests)
             db.session.commit()
 
-            return test_schema.dumps(tests)
+            return test_schema.jsonify(tests)
 
     def get(self, id_of_user):
         user = User.query.get_or_404(id_of_user)
         t = Test.query.filter_by(user_id=id_of_user).all()
-        return tests_schema.dumps(t)
+        return tests_schema.jsonify(t)
 
 api.add_resource(TestResource, '/testing/<id_of_user>')
 
@@ -107,7 +124,7 @@ class UserLogin_Create(Resource):
     def post(self):
         hashed_password = bcrypt.generate_password_hash(request.json['password']).decode('utf-8')
         defined_location = define_location()
-        user = User(username=request.json['username'], email=request.json['email'], password=hashed_password, health_status=request.json['health_status'], location=defined_location)
+        user = User(username=request.json['username'], email=request.json['email'], password=hashed_password, health_status=request.json['health_status'], residential_location=defined_location)
         db.session.add(user)
         db.session.commit()
         return user_schema.dump(user)
@@ -119,7 +136,7 @@ api.add_resource(UserLogin_Create, '/user')
 
 
 @app.route("/")
-@app.route("/Dashboard/<id_of_user>")
+@app.route("/dashboard/<id_of_user>", methods =['GET'])
 def home(id_of_user):
     user = User.query.get_or_404(id_of_user)
     name = user.username
@@ -127,7 +144,7 @@ def home(id_of_user):
     return jsonify(Greeting)
 
 
-@app.route("/company_updates")
+@app.route("/company_updates", methods =['GET'])
 def about():
     return jsonify(posts)
 
@@ -175,11 +192,12 @@ def reset_token(token):
 
 
 @app.route("/api/<id_of_user>/vaccinationcentres/", methods=['GET'])
-def wallet(id_of_user):
+def vac_centres(id_of_user):
 
     user = User.query.get_or_404(id_of_user)
-    loc = user.location
+    loc = user.residential_location
     results = define_vaccinations_centre(loc)
     return jsonify(results)
+
 
 
