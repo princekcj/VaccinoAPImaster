@@ -1,11 +1,12 @@
-from flask import render_template, url_for, flash, redirect, request, jsonify
+import json
 from urllib.request import urlopen
 from VacAPI import db, ma, app, bcrypt, mail, api
-from VacAPI.models import User, Test
-from flask_login import login_user, current_user, logout_user, login_required
+from VacAPI.models import User, Test, Vaccination
 from flask_mail import Message
+from flask import render_template, url_for, flash, redirect, request, jsonify
 from flask_restful import Resource
-from VacAPI.schema import user_schema, test_schema,tests_schema
+from VacAPI.schema import user_schema, test_schema,tests_schema,vaccination_schema, vaccinations_schema
+import requests
 import googlemaps
 import geocoder
 from googleplaces import GooglePlaces, types
@@ -14,22 +15,22 @@ from datetime import datetime
 gmaps = googlemaps.Client(key='AIzaSyCee7-FHwxX05iBtQgm-IP-BsTwORgtPfw')
 google_places = GooglePlaces('AIzaSyBDfNHKqNBi7ni5nj-xAuy9XjUsRrrJT8c')
 
+Apikey = 'AIzaSyCee7-FHwxX05iBtQgm-IP-BsTwORgtPfw'
 
 posts = [
     {
-        'author': 'VacAPI Pay',
-        'title': 'Borderless Transfer',
-        'content': 'Send Ghanaian Cedis to any African country, Fast and Fee - Less',
-        'date_posted': 'March 21, 2020'
+        'author': 'Vaccino',
+        'title': 'how to change password',
+        'content': 'please click on forgot password button',
+        'date_posted': 'November 21, 2021'
     },
     {
-        'author': 'VacAPI Pay',
-        'title': 'African Currency Exchange',
-        'content': 'Check and Change Your Cedis Into Any African Currency',
-        'date_posted': 'April 21, 2018'
+        'author': 'Vaccino',
+        'title': 'How often does updates refresh?',
+        'content': 'updates completed daily',
+        'date_posted': 'April 21, 2021'
     }
 ]
-
 
 
 def define_location():
@@ -41,17 +42,33 @@ def define_location():
     location_values = d['address_components']
     local = location_values[1]
     location_name = local['long_name']
-    location ={lat, long}
-    return location
+    location =[lat, long]
+    location_content = {                  
+        "location": location,
+        "location_name" : location_name
+    }
 
-def define_vaccinations_centre(location):
+    return location_content
+
+def define_vaccinations_centre(location_content):
     results=[]
-    nearby_centres = google_places.nearby_search(location=location, rankby=distance,type='hospital' ,keyword='vaccination centre', radius=5000)
-    for item in nearby_centres.places:
-        results.append(item.name)
-        return results
+    nearby_centres = gmaps.places_nearby(location=location_content["location"],keyword="hospital",radius=8046, language="en")
+    nearby_centres = nearby_centres['results']
+    for item in nearby_centres:
+        results.append(item['name'])
+     
 
     return results
+
+def pharmacy_location(location_content):
+     nearby_centres = gmaps.places_nearby(location=location_content["location"],keyword='pharmacy', radius=8046)
+     results = []
+     nearby_centres = nearby_centres['results']
+     for item in nearby_centres:
+         results.append(item['name'])
+
+
+     return results
 
 
 class Preserialize:
@@ -71,7 +88,8 @@ class TestResource(Resource):
             tests = Test(user_id=id_of_user, test_result=request.json['test_result'] )
             db.session.add(tests)
             db.session.commit()
-
+            if request.json['test_result'] == "positive":
+                user.health_status = 'red'
             return test_schema.jsonify(tests)
 
     def get(self, id_of_user):
@@ -79,11 +97,27 @@ class TestResource(Resource):
         t = Test.query.filter_by(user_id=id_of_user).all()
         return tests_schema.jsonify(t)
 
-api.add_resource(TestResource, '/testing/<id_of_user>')
+api.add_resource(TestResource, '/api/testing/<id_of_user>')
 
 
 
+class VaccinationResource(Resource):
+    def post(self, id_of_user):
+        user = User.query.get_or_404(id_of_user)
+        vaccine = request.json['name_of_vaccine']
+        number_of_dose = request.json['dose_number']
+        country_of_vaccination = request.json['country_of_vaccination']
+        vac = Vaccination(user_id=id_of_user, vaccine = vaccine, number_of_dose = number_of_dose,country_of_vaccination = country_of_vaccination)
+        db.session.add(vac)
+        db.session.commit()
+        return vaccination_schema.jsonify(vac)
 
+    def get(self, id_of_user):
+        user = User.query.get_or_404(id_of_user)
+        v = Vaccination.query.filter_by(user_id=id_of_user).all()
+        return vaccinations_schema.jsonify(v)
+
+api.add_resource(VaccinationResource, '/api/vaccination/<id_of_user>')
 
 
 
@@ -111,7 +145,7 @@ class UserResource(Resource):
         db.session.commit()
         return '', 204
 
-api.add_resource(UserResource, '/user/<id_of_user>')
+api.add_resource(UserResource, '/api/user/<id_of_user>')
 
 class UserLogin_Create(Resource):
     def get(self):
@@ -124,28 +158,26 @@ class UserLogin_Create(Resource):
     def post(self):
         hashed_password = bcrypt.generate_password_hash(request.json['password']).decode('utf-8')
         defined_location = define_location()
-        user = User(username=request.json['username'], email=request.json['email'], password=hashed_password, health_status=request.json['health_status'], residential_location=defined_location)
+        user = User (gender = request.json['gender'],full_name=request.json['username'], email=request.json['email'], password=hashed_password, health_status=request.json['health_status'], residential_location=defined_location["location_name"], passport_number = request.json['passport_number'], phone_number=request.json['phone_number'], country=request.json['country'], date_of_birth=request.json['date_of_birth'])
         db.session.add(user)
         db.session.commit()
         return user_schema.dump(user)
 
-api.add_resource(UserLogin_Create, '/user')
-
-
+api.add_resource(UserLogin_Create, '/api/user')
 
 
 
 @app.route("/")
-@app.route("/dashboard/<id_of_user>", methods =['GET'])
+@app.route("/api/dashboard/<id_of_user>", methods =['GET'])
 def home(id_of_user):
     user = User.query.get_or_404(id_of_user)
-    name = user.username
+    name = user.full_name
     Greeting = f'Hello, {name}'
     return jsonify(Greeting)
 
 
-@app.route("/company_updates", methods =['GET'])
-def about():
+@app.route("/api/faqs", methods =['GET'])
+def faqs():
     return jsonify(posts)
 
 
@@ -195,9 +227,29 @@ def reset_token(token):
 def vac_centres(id_of_user):
 
     user = User.query.get_or_404(id_of_user)
-    loc = user.residential_location
+    loc = define_location()
     results = define_vaccinations_centre(loc)
     return jsonify(results)
 
+@app.route("/api/<id_of_user>/pharmacies/", methods=['GET'])
+def pharma(id_of_user):
+    import json
+
+    user = User.query.get_or_404(id_of_user)
+    loc = define_location()
+    results = pharmacy_location(loc)
+    return json.dumps(results)
+
+@app.route("/api/covid_updates/", methods=['GET'])
+def updates():
+    url = "https://covid-19-data.p.rapidapi.com/country"
+    querystring = {"name":"uk"}
+    headers = {
+         'x-rapidapi-host': "covid-19-data.p.rapidapi.com",
+         'x-rapidapi-key': "a662b8b6d1mshbf604cd25a5bb8ap1d5915jsn0063bd6dd731"
+         }
+
+    response = requests.request("GET", url, headers=headers, params=querystring)
 
 
+    return response.text

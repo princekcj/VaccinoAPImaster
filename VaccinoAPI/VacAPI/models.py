@@ -10,12 +10,18 @@ def load_user(user_id):
 
 class User(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(20), unique=True, nullable=False)
+    full_name = db.Column(db.String(20), unique=True, nullable=False)
+    date_of_birth = db.Column(db.String(20), nullable =False)
+    gender = db.Column(db.String(20), nullable =False)
+    passport_number = db.Column(db.Integer, unique = True)
+    phone_number = db.Column(db.String(20), unique=True, nullable =False)
     email = db.Column(db.String(120), unique=True, nullable=False)
     password = db.Column(db.String(60), nullable=False)
     health_status = db.Column(db.String(60), nullable=False)
     residential_location = db.Column(db.String(60), nullable=False)
+    country = db.Column(db.String(20), unique=True, nullable =False)
     covid_tests = db.relationship('Test', backref='patient', lazy=True)
+    vaccinations = db.relationship('Vaccination', backref='testee', lazy = True)
 
 
     def get_reset_token(self, expires_sec=1800):
@@ -44,3 +50,13 @@ class Test(db.Model):
 
     def __repr__(self):
        return f"Test('{self.test_result}', '{self.date_result_recieved})"
+
+class Vaccination(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    vaccine = db.Column(db.String,nullable=False)
+    number_of_dose = db.Column(db.String ,nullable=False)
+    country_of_vaccination = db.Column(db.String, nullable=False)
+
+    def __repr__(self):
+       return f"Vaccination('{self.vaccine}', '{self.number_of_dose},'{self.country_of_vaccination}')"
