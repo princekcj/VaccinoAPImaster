@@ -238,7 +238,7 @@ def pharma(id_of_user):
     user = User.query.get_or_404(id_of_user)
     loc = define_location()
     results = pharmacy_location(loc)
-    return json.dumps(results)
+    return jsonify(results)
 
 @app.route("/api/covid_updates/", methods=['GET'])
 def updates():
