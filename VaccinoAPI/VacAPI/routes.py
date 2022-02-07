@@ -15,8 +15,7 @@ from datetime import datetime
 gmaps = googlemaps.Client(key='')
 google_places = GooglePlaces('')
 
-Apikey = 'AIzaSyCee7-FHwxX05iBtQgm-IP-BsTwORgtPfw'
-
+Apikey = ''
 posts = [
     {
         'author': 'Vaccino',
