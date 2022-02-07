@@ -12,8 +12,8 @@ import geocoder
 from googleplaces import GooglePlaces, types
 from datetime import datetime
 
-gmaps = googlemaps.Client(key='AIzaSyCee7-FHwxX05iBtQgm-IP-BsTwORgtPfw')
-google_places = GooglePlaces('AIzaSyBDfNHKqNBi7ni5nj-xAuy9XjUsRrrJT8c')
+gmaps = googlemaps.Client(key='')
+google_places = GooglePlaces('')
 
 Apikey = 'AIzaSyCee7-FHwxX05iBtQgm-IP-BsTwORgtPfw'
 
